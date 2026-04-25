@@ -58,13 +58,39 @@ button{cursor:pointer}
 .subtitle{
   font-family:'Oxanium',sans-serif;font-weight:700;
   text-transform:uppercase;letter-spacing:.32em;
-  color:var(--muted);text-align:center;font-size:.78rem;
+  color:rgba(255,255,255,0.55);text-align:center;font-size:.78rem;
+  line-height:1.55;
 }
 
-/* ---------- HOME ---------- */
-#screen-home{justify-content:center;align-items:center;gap:20px}
-#screen-home .logo{margin-top:auto}
-#screen-home .subtitle{margin-bottom:auto}
+/* ---------- HOME / DEMO ---------- */
+#screen-home{justify-content:center;align-items:center;gap:14px;padding-top:20px;padding-bottom:24px}
+
+.demo{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  opacity:1;transition:opacity .5s ease;
+}
+.demo.fade-out{opacity:0}
+.demo-wheel-wrap{position:relative;width:120px;height:120px}
+#demo-wheel{
+  width:120px;height:120px;display:block;border-radius:50%;
+  filter:drop-shadow(0 0 12px rgba(255,209,0,.22));
+}
+.demo-pointer{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  width:14px;height:18px;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));
+  pointer-events:none;
+}
+.demo-text{
+  text-align:center;font-family:'Bebas Neue',sans-serif;
+  letter-spacing:.04em;line-height:1.2;font-size:.95rem;
+  color:#fff;opacity:0;transform:translateY(4px);
+  transition:opacity .35s ease, transform .35s ease;
+  min-height:34px;white-space:nowrap;
+}
+.demo-text.show{opacity:1;transform:translateY(0)}
+.demo-winner{color:#FFD100}
+.demo-amount{color:#00E676}
 .home-card{
   width:100%;max-width:380px;
   background:var(--panel);border:1px solid var(--border);
@@ -130,6 +156,11 @@ label.field span{
 }
 .btn-icon svg{width:22px;height:22px}
 .waiting-row{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.75)}
+.invite-info{
+  font-family:'Oxanium',sans-serif;font-size:.78rem;
+  color:rgba(255,255,255,0.35);text-align:center;
+  max-width:340px;line-height:1.4;
+}
 .dot-pulse{
   width:10px;height:10px;border-radius:50%;background:#00E676;
   box-shadow:0 0 14px #00E676;animation:dotPulse 1.2s ease-in-out infinite;
@@ -235,6 +266,16 @@ label.field span{
   border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
 }
 .pause-btn svg{width:16px;height:16px;fill:var(--gold)}
+.round-actions{display:flex;gap:6px;align-items:center}
+.stop-btn{
+  width:36px;height:36px;border-radius:10px;
+  background:rgba(255,23,68,0.15);
+  border:1px solid rgba(255,23,68,0.3);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .15s,background .2s;
+}
+.stop-btn:active{transform:scale(.94)}
+.stop-btn svg{width:14px;height:14px;fill:var(--red)}
 
 .turn-banner{
   width:100%;text-align:center;padding:12px;border-radius:12px;
@@ -357,6 +398,39 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
 .pause-overlay .btn-primary{min-width:220px;display:flex;align-items:center;justify-content:center;gap:8px}
 .pause-overlay .btn-primary svg{width:18px;height:18px;fill:#000}
 
+/* ---------- CONFIRM QUIT MODAL ---------- */
+.confirm-overlay{
+  position:fixed;inset:0;z-index:65;display:none;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;padding:24px;
+}
+.confirm-overlay.visible{display:flex}
+.confirm-card{
+  background:rgba(20,20,20,.92);
+  border:1px solid var(--border);
+  border-radius:18px;padding:24px;
+  max-width:380px;width:100%;text-align:center;
+  animation:cardIn .25s ease-out;
+  box-shadow:0 20px 50px rgba(0,0,0,.6);
+}
+.confirm-card h3{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.9rem;letter-spacing:.04em;
+  color:#fff;margin-bottom:8px;
+}
+.confirm-card p{
+  color:rgba(255,255,255,.55);
+  font-size:.88rem;line-height:1.4;margin-bottom:18px;
+}
+.confirm-buttons{display:flex;flex-direction:column;gap:10px}
+.btn-danger{
+  background:linear-gradient(180deg,#FF1744,#C2185B);
+  color:#fff;font-family:'Bebas Neue',sans-serif;
+  font-size:1.3rem;letter-spacing:.06em;padding:14px;border-radius:12px;
+  box-shadow:0 4px 18px rgba(255,23,68,.4),inset 0 1px 0 rgba(255,255,255,.3);
+}
+.btn-danger:active{transform:translateY(1px)}
+
 /* ---------- RECONNECT BANNER ---------- */
 .net-banner{
   position:fixed;top:0;left:0;right:0;z-index:70;
@@ -431,8 +505,20 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
 <!-- ============ HOME ============ -->
 <section id="screen-home" class="screen">
   <div></div>
+  <div class="demo" id="demo-anim">
+    <div class="demo-wheel-wrap">
+      <canvas id="demo-wheel" width="240" height="240"></canvas>
+      <svg class="demo-pointer" viewBox="0 0 14 18" aria-hidden="true">
+        <path d="M7 18 L1 3 Q7 0 13 3 Z" fill="#FFE070" stroke="#7a4a00" stroke-width="0.8"/>
+      </svg>
+    </div>
+    <div class="demo-text" id="demo-text">
+      <div>Félicitations <span class="demo-winner" id="demo-winner">JASON</span> 🎉</div>
+      <div><span id="demo-loser">JOHN</span> vous doit <span class="demo-amount" id="demo-amount">15 000</span> FCFA</div>
+    </div>
+  </div>
   <h1 class="logo">ROLLIN<br>WHEELS</h1>
-  <div class="subtitle">DUEL DE ROUE EN TEMPS RÉEL</div>
+  <div class="subtitle">Défiez-vous au casino en ligne<br>Tu perds, tu paies !</div>
   <div class="home-card">
     <label class="field">
       <span>Ton prénom</span>
@@ -462,6 +548,7 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
     </button>
   </div>
   <div class="waiting-row"><span class="dot-pulse"></span><span>En attente de ton adversaire…</span></div>
+  <div class="invite-info">Dès que ton adversaire clique sur le lien, la partie démarre.</div>
   <button id="btn-cancel" class="btn-ghost">Annuler</button>
 </section>
 
@@ -475,7 +562,7 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
     <div class="host-badge">Tu es défié(e) par <b id="join-host-name">…</b></div>
     <label class="field">
       <span>Ton prénom</span>
-      <input id="join-name" class="input" type="text" maxlength="16" placeholder="ABDOUL" />
+      <input id="join-name" class="input" type="text" maxlength="16" placeholder="John" />
     </label>
     <button id="btn-accept" class="btn-primary">ACCEPTER LE DÉFI 🔥</button>
   </div>
@@ -513,9 +600,14 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
   <div class="round-bar">
     <div class="round-text" id="round-text">Round 1 / 4</div>
     <div class="dots" id="dots"></div>
-    <button id="btn-pause" class="pause-btn" aria-label="Pause">
-      <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>
-    </button>
+    <div class="round-actions">
+      <button id="btn-pause" class="pause-btn" aria-label="Pause">
+        <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>
+      </button>
+      <button id="btn-stop" class="stop-btn" aria-label="Abandonner la partie">
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+      </button>
+    </div>
   </div>
 
   <div id="turn-banner" class="turn-banner">⚡ TON TOUR — LANCE LA ROUE !</div>
@@ -567,6 +659,18 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
   </button>
 </div>
 
+<!-- ============ CONFIRM QUIT MODAL ============ -->
+<div id="confirm-quit" class="confirm-overlay">
+  <div class="confirm-card">
+    <h3>Abandonner la partie ?</h3>
+    <p>Le jeu sera terminé immédiatement et les scores actuels seront affichés sur l'écran de résultat.</p>
+    <div class="confirm-buttons">
+      <button id="btn-quit-yes" class="btn-danger">OUI, QUITTER</button>
+      <button id="btn-quit-no"  class="btn-ghost">CONTINUER</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ FIREBASE ============ -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -610,6 +714,19 @@ const SEGMENTS = [
 ];
 const EMOJIS = ['😂','🔥','💀','😭','🤣','😈','🤡','👀','💸','🙏','🤑','😤','🫵','🤦'];
 const ROUND_DURATION = 60;
+
+const DEMO_PAIRS = [
+  ['JASON',   'JOHN'],
+  ['KARIM',   'ABDOUL'],
+  ['SARAH',   'MAYA'],
+  ['LIONEL',  'KEVIN'],
+  ['AMINA',   'FATOU'],
+  ['DJIBRIL', 'OMAR'],
+  ['CHEIKH',  'MOUSSA'],
+  ['NADIA',   'AÏCHA'],
+  ['IBRAHIM', 'YASSIN'],
+  ['SAFIA',   'MARIAM'],
+];
 
 /* ---------- State ---------- */
 const state = {
@@ -1403,6 +1520,31 @@ function bindPauseControls(){
   });
 }
 
+/* ---------- STOP / QUIT ---------- */
+function bindStopControls(){
+  const overlay = $('#confirm-quit');
+  $('#btn-stop').addEventListener('click', () => {
+    if (!state.gameId || !state.data) return;
+    if (state.data.phase !== 'playing') return;
+    overlay.classList.add('visible');
+  });
+  $('#btn-quit-no').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+  });
+  $('#btn-quit-yes').addEventListener('click', async () => {
+    overlay.classList.remove('visible');
+    if (!state.gameId) return;
+    try {
+      await db.ref('parties/' + state.gameId).update({
+        phase: 'ended',
+        timeLeft: 0,
+        paused: false,
+        pausedBy: null
+      });
+    } catch(e){}
+  });
+}
+
 /* ---------- RESULT ---------- */
 function showResult(v){
   const hostName  = (v.host && v.host.name)  || '—';
@@ -1465,11 +1607,128 @@ db.ref('.info/connected').on('value', snap => {
   $('#net-banner').classList.toggle('visible', snap.val() === false);
 });
 
+/* ---------- HOME DEMO ANIMATION ---------- */
+const demoState = { angle: 0, rafId: null, timeoutId: null };
+
+function drawDemoWheel(){
+  const cv = document.getElementById('demo-wheel');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const cx = W/2, cy = H/2, R = Math.min(cx, cy) - 6;
+  ctx.clearRect(0, 0, W, H);
+
+  const arc = (Math.PI * 2) / 16;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(demoState.angle);
+
+  for (let i = 0; i < 16; i++){
+    const start = i * arc;
+    const end = start + arc;
+    const mid = start + arc/2;
+    const ex = Math.cos(mid) * R;
+    const ey = Math.sin(mid) * R;
+
+    const [c0, c1] = segmentColor(i);
+    const grad = ctx.createLinearGradient(0,0,ex,ey);
+    grad.addColorStop(0, c0);
+    grad.addColorStop(1, c1);
+
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,R,start,end);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(Math.cos(start)*R, Math.sin(start)*R);
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // outer ring
+  const ringGrad = ctx.createLinearGradient(0,0,W,H);
+  ringGrad.addColorStop(0,'#FFD100');
+  ringGrad.addColorStop(.5,'#FF8C00');
+  ringGrad.addColorStop(1,'#FF5500');
+  ctx.beginPath();
+  ctx.arc(cx,cy,R+1,0,Math.PI*2);
+  ctx.strokeStyle = ringGrad;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+}
+
+function startDemoLoop(){
+  const cont = document.getElementById('demo-anim');
+  const txt  = document.getElementById('demo-text');
+  if (!cont || !txt) return;
+
+  // pick a random positive segment
+  const positives = [];
+  SEGMENTS.forEach((s, i) => { if (s.value > 0) positives.push({ ...s, idx: i }); });
+  const target = positives[Math.floor(Math.random() * positives.length)];
+  const pair   = DEMO_PAIRS[Math.floor(Math.random() * DEMO_PAIRS.length)];
+
+  document.getElementById('demo-winner').textContent = pair[0];
+  document.getElementById('demo-loser').textContent  = pair[1];
+  document.getElementById('demo-amount').textContent = target.value.toLocaleString('fr-FR');
+
+  txt.classList.remove('show');
+  cont.classList.remove('fade-out');
+
+  // compute final angle so the chosen segment lands at the top
+  const arc = (Math.PI * 2) / 16;
+  const baseTarget = -Math.PI/2 - target.idx * arc - arc/2;
+  const targetMod  = ((baseTarget % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  const startAngle = demoState.angle;
+  const startMod   = ((startAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+  let delta = (targetMod - startMod + Math.PI*2) % (Math.PI*2);
+  delta += 5 * Math.PI * 2; // 5 full spins for visual effect
+  const endAngle = startAngle + delta;
+
+  const t0 = performance.now();
+  const dur = 3000;
+
+  function frame(){
+    const el = performance.now() - t0;
+    const p = Math.min(1, el / dur);
+    const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+    demoState.angle = startAngle + (endAngle - startAngle) * eased;
+    drawDemoWheel();
+    if (p < 1){
+      demoState.rafId = requestAnimationFrame(frame);
+    } else {
+      demoState.rafId = null;
+      // Fade in the result text
+      txt.classList.add('show');
+      // Hold 2s, then fade out everything
+      demoState.timeoutId = setTimeout(() => {
+        cont.classList.add('fade-out');
+        // After the 500ms fade, wait 1s, then loop with new values
+        demoState.timeoutId = setTimeout(() => {
+          txt.classList.remove('show');
+          demoState.timeoutId = setTimeout(startDemoLoop, 1000);
+        }, 500);
+      }, 2000);
+    }
+  }
+  demoState.rafId = requestAnimationFrame(frame);
+}
+
 /* ---------- BOOT ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   initHome();
   bindPauseControls();
+  bindStopControls();
   $('#hub').addEventListener('click', tryStartSpin);
+  drawDemoWheel();
+  startDemoLoop();
 
   // Routing
   const hash = parseHash();
