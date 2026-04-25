@@ -96,6 +96,19 @@ button{cursor:pointer}
   background:var(--panel);border:1px solid var(--border);
   border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:14px;
 }
+.mode-toggle{display:flex;gap:8px}
+.mode-btn{
+  flex:1;padding:12px 8px;border-radius:12px;
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  color:#fff;font-family:'Bebas Neue',sans-serif;
+  font-size:1.05rem;letter-spacing:.06em;
+  transition:all .2s;
+}
+.mode-btn.active{
+  background:linear-gradient(180deg,#FFD100,#FF8C00);
+  color:#000;border-color:transparent;
+  box-shadow:0 0 18px rgba(255,160,0,.3);
+}
 label.field{display:flex;flex-direction:column;gap:6px}
 label.field span{
   font-family:'Oxanium';font-weight:700;text-transform:uppercase;
@@ -282,6 +295,14 @@ label.field span{
 @keyframes micPulse{
   0%{transform:scale(1);opacity:1}
   100%{transform:scale(1.45);opacity:0}
+}
+.mic-error{
+  font-size:0.7rem;
+  color:var(--red);
+  text-align:center;
+  margin:4px auto 0;
+  max-width:140px;
+  line-height:1.3;
 }
 
 .round-bar{
@@ -538,6 +559,17 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
   color:var(--gold);font-family:'Bebas Neue',sans-serif;
   letter-spacing:.04em;font-size:1.1rem;font-weight:400;
 }
+.solo-rematch{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  width:100%;max-width:380px;
+  animation:cardIn .4s ease-out .15s both;
+}
+.solo-rematch .btn-primary{width:100%}
+/* In solo mode, hide mic UI (no peer to send to) */
+#screen-game.solo-mode #mic-host,
+#screen-game.solo-mode #mic-guest,
+#screen-game.solo-mode #mic-error-host,
+#screen-game.solo-mode #mic-error-guest{display:none !important}
 .btn-quit{
   color:rgba(255,255,255,.5);
   min-width:200px;margin-top:4px;
@@ -569,6 +601,9 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
 </head>
 <body>
 
+<!-- ============ REMOTE AUDIO (WebRTC voice chat) ============ -->
+<audio id="remote-audio" autoplay playsinline></audio>
+
 <!-- ============ NETWORK BANNER ============ -->
 <div id="net-banner" class="net-banner">Reconnexion…</div>
 
@@ -590,11 +625,15 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
   <h1 class="logo">ROLLIN<br>WHEELS</h1>
   <div class="subtitle">Défiez-vous au casino en ligne<br>Tu perds, tu paies !</div>
   <div class="home-card">
+    <div class="mode-toggle">
+      <button id="btn-mode-solo" class="mode-btn" type="button">🎮 SOLO</button>
+      <button id="btn-mode-duo"  class="mode-btn active" type="button">👥 DUO</button>
+    </div>
     <label class="field">
       <span>Ton prénom</span>
       <input id="home-name" class="input" type="text" maxlength="16" autocomplete="given-name" placeholder="JASON" />
     </label>
-    <label class="field">
+    <label class="field" id="rounds-field">
       <span>Nombre de rounds</span>
       <div class="rounds-row" id="rounds-row"></div>
     </label>
@@ -677,6 +716,7 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
           <path d="M17.5 11.5a.75.75 0 0 0-1.5 0 4 4 0 0 1-8 0 .75.75 0 0 0-1.5 0 5.5 5.5 0 0 0 4.75 5.45V19H9.5a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5h-1.75v-2.05A5.5 5.5 0 0 0 17.5 11.5z"/>
         </svg>
       </button>
+      <div id="mic-error-host" class="mic-error" style="display:none">Autorise le micro dans les paramètres de ton navigateur</div>
       <div class="score-val" id="score-host">0 FCFA</div>
       <div class="score-timer" id="timer-host">1:00</div>
     </div>
@@ -689,6 +729,7 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
           <path d="M17.5 11.5a.75.75 0 0 0-1.5 0 4 4 0 0 1-8 0 .75.75 0 0 0-1.5 0 5.5 5.5 0 0 0 4.75 5.45V19H9.5a.75.75 0 0 0 0 1.5h5a.75.75 0 0 0 0-1.5h-1.75v-2.05A5.5 5.5 0 0 0 17.5 11.5z"/>
         </svg>
       </button>
+      <div id="mic-error-guest" class="mic-error" style="display:none">Autorise le micro dans les paramètres de ton navigateur</div>
       <div class="score-val" id="score-guest">0 FCFA</div>
       <div class="score-timer" id="timer-guest">1:00</div>
     </div>
@@ -750,6 +791,10 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
     </div>
   </div>
 
+  <div id="solo-rematch" class="solo-rematch" style="display:none">
+    <button id="btn-solo-replay" class="btn-primary">REJOUER 🎲</button>
+  </div>
+
   <button id="btn-quit" class="btn-ghost btn-quit">QUITTER LE JEU</button>
   <div></div>
 </section>
@@ -806,22 +851,22 @@ const db = firebase.database();
 
 /* ---------- Constants ---------- */
 const SEGMENTS = [
-  { label: '+10 000',  value:   10000 },
-  { label: '-5 000',   value:   -5000 },
-  { label: '+50 000',  value:   50000 },
-  { label: '-15 000',  value:  -15000 },
-  { label: '+1 000',   value:    1000 },
-  { label: '-100K',    value: -100000 },
-  { label: '+25 000',  value:   25000 },
-  { label: '-2 000',   value:   -2000 },
-  { label: '+5 000',   value:    5000 },
-  { label: '-50 000',  value:  -50000 },
-  { label: '+100K',    value:  100000 },
-  { label: '-1 000',   value:   -1000 },
-  { label: '+20 000',  value:   20000 },
-  { label: '-10 000',  value:  -10000 },
-  { label: '+500',     value:     500 },
-  { label: '-30 000',  value:  -30000 },
+  { label: '+2 000',  value:  2000  },
+  { label: '-1 000',  value: -1000  },
+  { label: '+5 000',  value:  5000  },
+  { label: '-3 000',  value: -3000  },
+  { label: '+1 000',  value:  1000  },
+  { label: '-5 000',  value: -5000  },
+  { label: '+3 000',  value:  3000  },
+  { label: '-2 000',  value: -2000  },
+  { label: '+10 000', value:  10000 },
+  { label: '-7 000',  value: -7000  },
+  { label: '+7 000',  value:  7000  },
+  { label: '-500',    value: -500   },
+  { label: '+500',    value:  500   },
+  { label: '-10 000', value: -10000 },
+  { label: '+4 000',  value:  4000  },
+  { label: '-4 000',  value: -4000  },
 ];
 const EMOJIS = ['😂','🔥','💀','😭','🤣','😈','🤡','👀','💸','🙏','🤑','😤','🫵','🤦'];
 const ROUND_DURATION = 60;
@@ -855,151 +900,173 @@ const state = {
   lastEmojiTs: 0,
   prevScores: { host: 0, guest: 0 },
   rematchRounds: 4,
+  // Solo mode
+  mode: 'duo',                // 'duo' | 'solo'
+  soloData: null,             // local mirror of "Firebase" data
+  soloPlayerWillWin: false,   // 1% draw at game start
+  soloRollinSpinsLeft: 0,
+  soloRollinTurnActive: false,
+  soloRollinTarget: null,     // segment chosen for current Rollin spin
+  soloRollinSpinResolver: null,
 };
 const sessionStartTs = Date.now();
 
 /* ---------- WebRTC voice chat ---------- */
 const RTC_CONFIG = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" }
   ]
 };
 const rtc = {
   pc: null,
   localStream: null,
-  audioSender: null,
   remoteAudio: null,
-  signalingAttached: false,
-  pendingIce: [],
-  remoteSet: false,
+  initInProgress: false,
   micOn: false,
+  permissionDenied: false,
 };
 
-async function ensureRTC(){
-  if (rtc.pc || !state.gameId || !state.myRole) return;
+async function startVoiceChat(){
+  if (rtc.pc || rtc.initInProgress) return;
+  if (rtc.permissionDenied) return; // wait for an explicit mic-button click
+  if (!state.gameId || !state.myRole) return;
+  rtc.initInProgress = true;
+
+  // a) get the mic stream BEFORE creating the peer connection
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch (e) {
+    console.warn('getUserMedia failed:', e);
+    rtc.initInProgress = false;
+    rtc.permissionDenied = true;
+    showMicError(true);
+    return;
+  }
+  showMicError(false);
+  rtc.localStream = stream;
+  // Default: mic OFF (track muted) — connection still negotiates
+  stream.getAudioTracks().forEach(t => t.enabled = false);
+  rtc.micOn = false;
+
   const pc = new RTCPeerConnection(RTC_CONFIG);
   rtc.pc = pc;
-  rtc.pendingIce = [];
-  rtc.remoteSet = false;
 
-  if (!rtc.remoteAudio){
-    const a = document.createElement('audio');
-    a.autoplay = true; a.playsInline = true;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    rtc.remoteAudio = a;
-  }
-  pc.ontrack = ev => { rtc.remoteAudio.srcObject = ev.streams[0]; };
-
-  // sendrecv transceiver so negotiation can happen before user grants mic
-  const tr = pc.addTransceiver('audio', { direction: 'sendrecv' });
-  rtc.audioSender = tr.sender;
-
-  const myKey  = state.myRole === 'host' ? 'iceHost' : 'iceGuest';
-  pc.onicecandidate = ev => {
-    if (ev.candidate) {
-      db.ref('parties/' + state.gameId + '/webrtc/' + myKey)
-        .push(ev.candidate.toJSON()).catch(()=>{});
+  // 3) Remote audio reception — element is static in HTML with playsinline
+  rtc.remoteAudio = document.getElementById('remote-audio');
+  pc.ontrack = (event) => {
+    if (rtc.remoteAudio){
+      rtc.remoteAudio.srcObject = event.streams[0];
+      rtc.remoteAudio.play().catch(e => console.log('remoteAudio.play():', e));
     }
   };
 
-  attachSignaling();
+  // ICE candidate handler — registered BEFORE setLocalDescription
+  pc.onicecandidate = (event) => {
+    if (!event.candidate) return;
+    const key = state.myRole === 'host' ? 'hostCandidate' : 'guestCandidate';
+    db.ref('parties/' + state.gameId + '/webrtc/' + key)
+      .set(JSON.stringify(event.candidate)).catch(()=>{});
+  };
+
+  // b) Add all tracks BEFORE createOffer / createAnswer
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+  const base = 'parties/' + state.gameId + '/webrtc';
 
   if (state.myRole === 'host'){
+    // c-d) host creates offer + setLocalDescription, then writes it
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await db.ref('parties/' + state.gameId + '/webrtc/offer').set({
-        sdp: offer.sdp, type: offer.type
-      });
-    } catch(e){ console.warn('createOffer failed', e); }
-  }
-}
+      await db.ref(base + '/offer').set({ sdp: offer.sdp, type: offer.type });
+    } catch (e) { console.warn('host offer:', e); }
 
-function attachSignaling(){
-  if (rtc.signalingAttached) return;
-  rtc.signalingAttached = true;
-  const base = 'parties/' + state.gameId + '/webrtc';
+    // e) listen for the answer
+    db.ref(base + '/answer').on('value', async snap => {
+      const a = snap.val();
+      if (!a || !rtc.pc) return;
+      if (rtc.pc.currentRemoteDescription) return;
+      try {
+        await rtc.pc.setRemoteDescription(new RTCSessionDescription(a));
+      } catch (e) { console.warn('setRemoteDesc(answer):', e); }
+    });
 
-  if (state.myRole === 'guest'){
+    // f) listen for guest ICE candidate
+    db.ref(base + '/guestCandidate').on('value', async snap => {
+      const v = snap.val();
+      if (!v || !rtc.pc) return;
+      try {
+        const c = JSON.parse(v);
+        await rtc.pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch (e) { /* may fire before remoteDesc — overwrite will retrigger */ }
+    });
+  } else {
+    // c) listen for offer
     db.ref(base + '/offer').on('value', async snap => {
       const o = snap.val();
-      if (!o || !rtc.pc || rtc.remoteSet) return;
+      if (!o || !rtc.pc) return;
+      if (rtc.pc.currentRemoteDescription) return;
       try {
         await rtc.pc.setRemoteDescription(new RTCSessionDescription(o));
-        rtc.remoteSet = true;
-        await flushPendingIce();
+        // d) createAnswer + setLocalDescription, then e) write it
         const answer = await rtc.pc.createAnswer();
         await rtc.pc.setLocalDescription(answer);
         await db.ref(base + '/answer').set({ sdp: answer.sdp, type: answer.type });
-      } catch(e){ console.warn('answer flow failed', e); }
+      } catch (e) { console.warn('guest answer flow:', e); }
     });
-  } else {
-    db.ref(base + '/answer').on('value', async snap => {
-      const a = snap.val();
-      if (!a || !rtc.pc || rtc.remoteSet) return;
+
+    // f) listen for host ICE candidate
+    db.ref(base + '/hostCandidate').on('value', async snap => {
+      const v = snap.val();
+      if (!v || !rtc.pc) return;
       try {
-        await rtc.pc.setRemoteDescription(new RTCSessionDescription(a));
-        rtc.remoteSet = true;
-        await flushPendingIce();
-      } catch(e){ console.warn('setRemoteDesc(answer) failed', e); }
+        const c = JSON.parse(v);
+        await rtc.pc.addIceCandidate(new RTCIceCandidate(c));
+      } catch (e) { /* may fire before remoteDesc — overwrite will retrigger */ }
     });
   }
 
-  const otherKey = state.myRole === 'host' ? 'iceGuest' : 'iceHost';
-  db.ref(base + '/' + otherKey).on('child_added', async snap => {
-    const c = snap.val();
-    if (!c || !rtc.pc) return;
-    if (!rtc.remoteSet){ rtc.pendingIce.push(c); return; }
-    try { await rtc.pc.addIceCandidate(new RTCIceCandidate(c)); }
-    catch(e){ /* ignore stale candidates */ }
-  });
+  rtc.initInProgress = false;
 }
 
-async function flushPendingIce(){
-  const list = rtc.pendingIce.splice(0);
-  for (const c of list){
-    try { await rtc.pc.addIceCandidate(new RTCIceCandidate(c)); }
-    catch(e){}
-  }
-}
-
-async function toggleMic(){
+function toggleMic(){
   if (!state.gameId || !state.myRole) return;
-  await ensureRTC();
 
-  // First ever activation: capture mic and attach to sender
+  // Permission was denied or never requested yet — retry now (we're inside a click)
   if (!rtc.localStream){
-    try {
-      rtc.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch(e){
-      showCopyToast('Permission micro refusée');
-      return;
-    }
-    const track = rtc.localStream.getAudioTracks()[0];
-    track.enabled = true;
-    if (rtc.audioSender){
-      try { await rtc.audioSender.replaceTrack(track); } catch(e){}
-    }
-    rtc.micOn = true;
-  } else {
-    const track = rtc.localStream.getAudioTracks()[0];
-    if (!track) return;
-    track.enabled = !track.enabled;
-    rtc.micOn = track.enabled;
+    rtc.permissionDenied = false;
+    startVoiceChat().then(() => {
+      const t = rtc.localStream && rtc.localStream.getAudioTracks()[0];
+      if (t){
+        t.enabled = true;
+        rtc.micOn = true;
+        db.ref('parties/' + state.gameId + '/mic/' + state.myRole).set(true).catch(()=>{});
+      }
+    });
+    return;
   }
-  // Broadcast mic state
+  const t = rtc.localStream.getAudioTracks()[0];
+  if (!t) return;
+  t.enabled = !t.enabled;
+  rtc.micOn = t.enabled;
   db.ref('parties/' + state.gameId + '/mic/' + state.myRole).set(rtc.micOn).catch(()=>{});
+}
+
+function showMicError(visible){
+  if (!state.myRole) return;
+  const el = document.getElementById('mic-error-' + state.myRole);
+  if (el) el.style.display = visible ? '' : 'none';
 }
 
 function cleanupRTC(){
   if (state.gameId){
     const base = 'parties/' + state.gameId + '/webrtc';
-    try { db.ref(base + '/offer').off(); } catch(e){}
-    try { db.ref(base + '/answer').off(); } catch(e){}
-    try { db.ref(base + '/iceHost').off(); } catch(e){}
-    try { db.ref(base + '/iceGuest').off(); } catch(e){}
+    ['offer','answer','hostCandidate','guestCandidate'].forEach(k => {
+      try { db.ref(base + '/' + k).off(); } catch(e){}
+    });
   }
   if (rtc.pc){ try { rtc.pc.close(); } catch(e){} }
   if (rtc.localStream){
@@ -1008,11 +1075,10 @@ function cleanupRTC(){
   if (rtc.remoteAudio){ try { rtc.remoteAudio.srcObject = null; } catch(e){} }
   rtc.pc = null;
   rtc.localStream = null;
-  rtc.audioSender = null;
-  rtc.signalingAttached = false;
-  rtc.pendingIce = [];
-  rtc.remoteSet = false;
+  rtc.initInProgress = false;
   rtc.micOn = false;
+  rtc.permissionDenied = false;
+  showMicError(false);
   $('#mic-host').classList.remove('active','opp-talking');
   $('#mic-guest').classList.remove('active','opp-talking');
 }
@@ -1020,6 +1086,28 @@ function cleanupRTC(){
 /* ---------- Helpers ---------- */
 const $  = sel => document.querySelector(sel);
 const $$ = sel => document.querySelectorAll(sel);
+
+// Unified write: Firebase update in duo, local soloData mutation in solo.
+async function dispatchUpdate(updates){
+  if (state.mode === 'solo'){
+    if (!state.soloData) return;
+    Object.entries(updates).forEach(([path, value]) => {
+      const parts = path.split('/');
+      let obj = state.soloData;
+      for (let i = 0; i < parts.length - 1; i++){
+        if (!obj[parts[i]]) obj[parts[i]] = {};
+        obj = obj[parts[i]];
+      }
+      obj[parts[parts.length - 1]] = value;
+    });
+    onGameUpdate(JSON.parse(JSON.stringify(state.soloData)));
+    return;
+  }
+  if (!state.gameId) return;
+  try { await db.ref('parties/' + state.gameId).update(updates); } catch(e){}
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function genId(){
   const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1050,7 +1138,8 @@ function parseHash(){
 function show(id){
   $$('.screen').forEach(s => s.classList.remove('active'));
   $('#'+id).classList.add('active');
-  $('#emoji-bar').classList.toggle('visible', id === 'screen-game');
+  // Emoji bar only in duo mode (no peer to send to in solo)
+  $('#emoji-bar').classList.toggle('visible', id === 'screen-game' && state.mode === 'duo');
 }
 function showToast(emoji, name){
   const t = document.createElement('div');
@@ -1104,8 +1193,36 @@ function initHome(){
   inp.addEventListener('input', () => {
     inp.value = inp.value.toUpperCase().slice(0,16);
   });
-  $('#btn-create').addEventListener('click', createGame);
+  $('#btn-mode-solo').addEventListener('click', () => setMode('solo'));
+  $('#btn-mode-duo').addEventListener('click',  () => setMode('duo'));
+  $('#btn-create').addEventListener('click', () => {
+    const name = ($('#home-name').value || '').trim().toUpperCase();
+    if (!name){ inp.focus(); return; }
+    if (state.mode === 'solo'){
+      startSoloGame(name);
+    } else {
+      createGame();
+    }
+  });
+  setMode('duo');
   show('screen-home');
+}
+
+function setMode(mode){
+  state.mode = mode;
+  $('#btn-mode-solo').classList.toggle('active', mode === 'solo');
+  $('#btn-mode-duo').classList.toggle('active', mode === 'duo');
+  // Solo: 4 rounds forced, hide rounds picker
+  $('#rounds-field').style.display = (mode === 'solo') ? 'none' : '';
+  if (mode === 'solo'){
+    state.totalRounds = 4;
+    $$('#rounds-row .round-pill').forEach(p => {
+      p.classList.toggle('active', p.textContent === '4');
+    });
+  }
+  $('#btn-create').textContent = (mode === 'solo')
+    ? 'LANCER LA PARTIE ⚡'
+    : 'LANCER LE DÉFI ⚡';
 }
 
 async function createGame(){
@@ -1133,6 +1250,169 @@ async function createGame(){
     state.myRole = 'host';
     showInvite(name);
   } catch (e){ alert('Erreur réseau : ' + e.message); }
+}
+
+/* ---------- SOLO MODE ---------- */
+const ROLLIN_POSITIVES = [
+  { label: '+10 000', value: 10000 },
+  { label: '+7 000',  value:  7000 },
+  { label: '+5 000',  value:  5000 },
+  { label: '+4 000',  value:  4000 },
+  { label: '+3 000',  value:  3000 },
+  { label: '+2 000',  value:  2000 },
+];
+const ROLLIN_NEGATIVES = [
+  { label: '-1 000',  value: -1000 },
+  { label: '-2 000',  value: -2000 },
+  { label: '-3 000',  value: -3000 },
+  { label: '-500',    value:  -500 },
+];
+
+function startSoloGame(name){
+  if (gameListener){ gameListener(); gameListener = null; }
+  stopMyTimer();
+  if (state.endedCleanupTimer){ clearTimeout(state.endedCleanupTimer); state.endedCleanupTimer = null; }
+  state.endedCleanupScheduled = false;
+  state.gameId = null;
+  state.mode = 'solo';
+  state.myRole = 'host';
+  state.prevScores = { host: 0, guest: 0 };
+  state.spinning = false;
+  state.wAngle = 0;
+  state.wVel = 0;
+  if (state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = null; }
+  state.soloPlayerWillWin = Math.random() < 0.01;
+  state.soloRollinSpinsLeft = 0;
+  state.soloRollinTurnActive = false;
+  state.soloRollinTarget = null;
+  state.soloRollinSpinResolver = null;
+  state.soloData = {
+    host:  { name: name, score: 0 },
+    guest: { name: 'ROLLIN', score: 0 },
+    totalRounds: 4,
+    currentRound: 1,
+    roundOwner: 'host',
+    timeLeft: ROUND_DURATION,
+    phase: 'playing',
+    paused: false,
+    pausedBy: null,
+  };
+  attachSoloGame();
+}
+
+function attachSoloGame(){
+  show('screen-game');
+  $('#screen-game').classList.add('solo-mode');
+  drawWheel();
+  onGameUpdate(JSON.parse(JSON.stringify(state.soloData)));
+}
+
+function getRollinSegment(){
+  const sd = state.soloData;
+  if (!sd) return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+
+  // 1% scenario: player wins — Rollin uses the normal wheel but capped at +2 000
+  if (state.soloPlayerWillWin){
+    let seg = SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+    if (seg.value > 2000){
+      seg = { label: '+2 000', value: 2000 };
+    }
+    return seg;
+  }
+
+  const ecart = sd.guest.score - sd.host.score; // rollin - joueur
+  const isLastRound = sd.currentRound === sd.totalRounds;
+  const isLastSpinOfGame = isLastRound && state.soloRollinSpinsLeft === 1;
+  const random = Math.random();
+
+  // Last absolute spin of the game: pick the smallest positive that flips the lead
+  if (isLastSpinOfGame){
+    const needed = sd.host.score - sd.guest.score + 500;
+    if (needed > 0){
+      const sufficient = ROLLIN_POSITIVES
+        .filter(s => s.value >= needed)
+        .sort((a,b) => a.value - b.value);
+      if (sufficient.length > 0) return sufficient[0]; // smallest sufficient
+      return ROLLIN_POSITIVES[0];                       // largest available
+    } else {
+      return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+    }
+  }
+
+  // Last round, Rollin behind → 85% chance of a top-3 positive
+  if (isLastRound && ecart < 0){
+    if (random < 0.85) return ROLLIN_POSITIVES[Math.floor(Math.random() * 3)];
+    return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+  }
+  if (ecart < -15000){
+    if (random < 0.75) return ROLLIN_POSITIVES[Math.floor(Math.random() * ROLLIN_POSITIVES.length)];
+    return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+  }
+  if (ecart < -5000){
+    if (random < 0.55) return ROLLIN_POSITIVES[Math.floor(Math.random() * ROLLIN_POSITIVES.length)];
+    return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+  }
+  if (ecart > 10000){
+    if (random < 0.40) return ROLLIN_NEGATIVES[Math.floor(Math.random() * ROLLIN_NEGATIVES.length)];
+    return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+  }
+  return SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+}
+
+function soloIsActive(){
+  return state.mode === 'solo'
+      && state.soloData
+      && state.soloData.phase === 'playing';
+}
+
+function rollinDoOneSpin(){
+  return new Promise(resolve => {
+    if (!soloIsActive() || state.spinning){ resolve(); return; }
+    state.soloRollinTarget = getRollinSegment();
+    state.soloRollinSpinResolver = resolve;
+    state.spinning = true;
+    state.wVel = 0.26 + Math.random() * 0.38;
+    $('#hub').classList.add('disabled');
+    if (!state.rafId) state.rafId = requestAnimationFrame(spinLoop);
+  });
+}
+
+async function runRollinTurn(){
+  if (state.soloRollinTurnActive) return;
+  state.soloRollinTurnActive = true;
+  await sleep(1000);
+  if (!soloIsActive()){ state.soloRollinTurnActive = false; return; }
+
+  const numSpins = 2 + Math.floor(Math.random() * 3); // 2, 3 or 4
+  state.soloRollinSpinsLeft = numSpins;
+
+  for (let i = 0; i < numSpins; i++){
+    while (soloIsActive() && state.soloData.paused){
+      await sleep(200);
+    }
+    if (!soloIsActive()){ state.soloRollinTurnActive = false; return; }
+
+    await rollinDoOneSpin();
+    state.soloRollinSpinsLeft--;
+    if (!soloIsActive()){ state.soloRollinTurnActive = false; return; }
+    if (i < numSpins - 1) await sleep(900);
+  }
+
+  await sleep(400);
+  state.soloRollinTurnActive = false;
+  if (!soloIsActive()) return;
+
+  const sd = state.soloData;
+  const next = (sd.currentRound || 1) + 1;
+  if (next > sd.totalRounds){
+    await dispatchUpdate({ timeLeft: 0, phase: 'ended' });
+  } else {
+    await dispatchUpdate({
+      timeLeft: ROUND_DURATION,
+      currentRound: next,
+      roundOwner: 'host',
+    });
+  }
 }
 
 /* ---------- INVITE ---------- */
@@ -1268,7 +1548,7 @@ function attachGameListeners(){
   drawWheel();
   buildEmojiBar();
   setupMicButtons();
-  ensureRTC();
+  startVoiceChat();
   state.lastEmojiTs = sessionStartTs;
 
   if (gameListener) gameListener();
@@ -1289,6 +1569,21 @@ function cleanupAndHome(){
   stopMyTimer();
   cleanupRTC();
   if (state.endedCleanupTimer){ clearTimeout(state.endedCleanupTimer); state.endedCleanupTimer = null; }
+  // Solo cleanup (forces any in-flight Rollin loop to exit via soloIsActive())
+  state.soloData = null;
+  state.soloPlayerWillWin = false;
+  state.soloRollinSpinsLeft = 0;
+  state.soloRollinTurnActive = false;
+  state.soloRollinTarget = null;
+  state.soloRollinSpinResolver = null;
+  $('#screen-game').classList.remove('solo-mode');
+  state.mode = 'duo';
+  if ($('#btn-mode-duo')) setMode('duo');
+  // Stop any wheel raf
+  if (state.rafId){ cancelAnimationFrame(state.rafId); state.rafId = null; }
+  state.spinning = false;
+  state.wVel = 0;
+  // Existing duo cleanup
   localStorage.removeItem('rdf_gameId');
   localStorage.removeItem('rdf_role');
   state.gameId = null; state.myRole = null;
@@ -1342,13 +1637,15 @@ function onGameUpdate(v){
   const t = typeof v.timeLeft === 'number' ? v.timeLeft : ROUND_DURATION;
   const myTurn = v.roundOwner === state.myRole;
   const tHost = $('#timer-host'), tGuest = $('#timer-guest');
+  // In solo, Rollin's turn doesn't use a countdown — hide the timer entirely
+  const hideRollinTimer = state.mode === 'solo' && v.roundOwner === 'guest';
   tHost.textContent  = ownerIsHost  ? fmtTimer(t) : '';
-  tGuest.textContent = !ownerIsHost ? fmtTimer(t) : '';
+  tGuest.textContent = (!ownerIsHost && !hideRollinTimer) ? fmtTimer(t) : '';
   tHost.classList.toggle('visible', ownerIsHost);
-  tGuest.classList.toggle('visible', !ownerIsHost);
+  tGuest.classList.toggle('visible', !ownerIsHost && !hideRollinTimer);
   const urgent = t <= 10;
   tHost.classList.toggle('urgent', ownerIsHost && urgent);
-  tGuest.classList.toggle('urgent', !ownerIsHost && urgent);
+  tGuest.classList.toggle('urgent', !ownerIsHost && urgent && !hideRollinTimer);
 
   // round bar
   const cr = v.currentRound || 1;
@@ -1361,6 +1658,9 @@ function onGameUpdate(v){
   if (myTurn){
     tb.className = 'turn-banner';
     tb.innerHTML = '⚡ TON TOUR — LANCE LA ROUE !';
+  } else if (state.mode === 'solo'){
+    tb.className = 'turn-banner opp';
+    tb.innerHTML = '🤖 ROLLIN joue…';
   } else {
     const advName = state.myRole === 'host' ? guestName : hostName;
     tb.className = 'turn-banner opp';
@@ -1388,30 +1688,40 @@ function onGameUpdate(v){
     po.classList.remove('visible');
   }
 
-  // emoji broadcast
-  if (v.lastEmoji && v.lastEmoji.from && v.lastEmoji.from !== state.myRole){
-    if (v.lastEmoji.ts > state.lastEmojiTs && v.lastEmoji.ts > sessionStartTs){
-      state.lastEmojiTs = v.lastEmoji.ts;
-      spawnFlyingEmoji(v.lastEmoji.emoji);
-      const advName = state.myRole === 'host' ? guestName : hostName;
-      showToast(v.lastEmoji.emoji, advName);
+  // duo-only: emoji broadcast + mic mirroring
+  if (state.mode === 'duo'){
+    if (v.lastEmoji && v.lastEmoji.from && v.lastEmoji.from !== state.myRole){
+      if (v.lastEmoji.ts > state.lastEmojiTs && v.lastEmoji.ts > sessionStartTs){
+        state.lastEmojiTs = v.lastEmoji.ts;
+        spawnFlyingEmoji(v.lastEmoji.emoji);
+        const advName = state.myRole === 'host' ? guestName : hostName;
+        showToast(v.lastEmoji.emoji, advName);
+      }
     }
+
+    const otherRole = state.myRole === 'host' ? 'guest' : 'host';
+    const mineMic = !!(v.mic && v.mic[state.myRole]);
+    const oppMic  = !!(v.mic && v.mic[otherRole]);
+    $('#mic-' + state.myRole).classList.toggle('active', mineMic);
+    $('#mic-' + state.myRole).classList.remove('opp-talking');
+    $('#mic-' + otherRole).classList.toggle('opp-talking', oppMic);
+    $('#mic-' + otherRole).classList.remove('active');
+    $('#mic-' + state.myRole).classList.remove('locked');
+    $('#mic-' + otherRole).classList.add('locked');
   }
 
-  // mic state mirroring
-  const otherRole = state.myRole === 'host' ? 'guest' : 'host';
-  const mineMic = !!(v.mic && v.mic[state.myRole]);
-  const oppMic  = !!(v.mic && v.mic[otherRole]);
-  $('#mic-' + state.myRole).classList.toggle('active', mineMic);
-  $('#mic-' + state.myRole).classList.remove('opp-talking');
-  $('#mic-' + otherRole).classList.toggle('opp-talking', oppMic);
-  $('#mic-' + otherRole).classList.remove('active');
-  $('#mic-' + state.myRole).classList.remove('locked');
-  $('#mic-' + otherRole).classList.add('locked');
-
-  // timer drive (active player only, when not paused, when game playing)
+  // timer drive — player only (Rollin doesn't decrement a timer)
   if (v.phase === 'playing' && !v.paused && myTurn) startMyTimer();
   else stopMyTimer();
+
+  // SOLO: trigger Rollin's turn when it's their turn and the game is live
+  if (state.mode === 'solo'
+      && v.phase === 'playing'
+      && !v.paused
+      && v.roundOwner === 'guest'
+      && !state.soloRollinTurnActive){
+    runRollinTurn();
+  }
 
   // ended
   if (v.phase === 'ended'){
@@ -1419,7 +1729,8 @@ function onGameUpdate(v){
     if (prevPhase !== 'ended'){
       showResult(v);
     }
-    if (!state.endedCleanupScheduled){
+    // Only schedule the 5-min cleanup in duo (Firebase data exists)
+    if (state.mode === 'duo' && !state.endedCleanupScheduled){
       state.endedCleanupScheduled = true;
       const gid = state.gameId;
       state.endedCleanupTimer = setTimeout(() => {
@@ -1465,27 +1776,20 @@ async function tickTimer(){
   if (v.phase !== 'playing' || v.paused || v.roundOwner !== state.myRole) return;
   const t = (typeof v.timeLeft === 'number') ? v.timeLeft : ROUND_DURATION;
   if (t > 1){
-    try { await db.ref('parties/' + state.gameId + '/timeLeft').set(t - 1); } catch(e){}
+    await dispatchUpdate({ timeLeft: t - 1 });
     return;
   }
   // round ends
   const next = (v.currentRound || 1) + 1;
   if (next > (v.totalRounds || 4)){
-    try {
-      await db.ref('parties/' + state.gameId).update({
-        timeLeft: 0,
-        phase: 'ended'
-      });
-    } catch(e){}
+    await dispatchUpdate({ timeLeft: 0, phase: 'ended' });
   } else {
     const nextOwner = v.roundOwner === 'host' ? 'guest' : 'host';
-    try {
-      await db.ref('parties/' + state.gameId).update({
-        timeLeft: ROUND_DURATION,
-        currentRound: next,
-        roundOwner: nextOwner
-      });
-    } catch(e){}
+    await dispatchUpdate({
+      timeLeft: ROUND_DURATION,
+      currentRound: next,
+      roundOwner: nextOwner
+    });
   }
 }
 
@@ -1493,10 +1797,10 @@ async function tickTimer(){
 function segmentColor(i){
   const v = SEGMENTS[i].value;
   const a = Math.abs(v);
-  if (v > 0 && a >= 50000) return ['#8a6e00','#b08c00'];   // gold
-  if (v > 0)               return ['#0d6e35','#0f8040'];   // green
-  if (v < 0 && a >= 50000) return ['#5e0015','#75001b'];   // deep red
-  return ['#8b0a2a','#a80d32'];                            // red
+  if (v > 0 && a >= 7000) return ['#8a6e00','#b08c00'];   // gold (jackpot +)
+  if (v > 0)              return ['#0d6e35','#0f8040'];   // green
+  if (v < 0 && a >= 7000) return ['#5e0015','#75001b'];   // deep red (jackpot -)
+  return ['#8b0a2a','#a80d32'];                           // red
 }
 function drawWheel(){
   const cv = $('#wheel');
@@ -1593,13 +1897,32 @@ function spinLoop(){
 }
 
 async function finishSpin(){
-  const seg = getTopSegment(state.wAngle);
   const v = state.data;
   if (!v) return;
-  const myKey = state.myRole;
-  const cur = (v[myKey] && typeof v[myKey].score === 'number') ? v[myKey].score : 0;
-  const next = cur + seg.value;
-  try { await db.ref('parties/' + state.gameId + '/' + myKey + '/score').set(next); } catch(e){}
+  if (v.phase === 'ended') return;
+
+  let seg, key;
+  if (state.mode === 'solo' && state.soloRollinTarget){
+    // Rollin's spin: substitute predetermined segment + snap angle
+    seg = state.soloRollinTarget;
+    state.soloRollinTarget = null;
+    const idx = SEGMENTS.findIndex(s => s.value === seg.value && s.label === seg.label);
+    if (idx >= 0){
+      const arc = (Math.PI * 2) / 16;
+      let target = -Math.PI/2 - idx*arc - arc/2;
+      while (target < 0) target += Math.PI * 2;
+      state.wAngle = target;
+      drawWheel();
+    }
+    key = 'guest';
+  } else {
+    seg = getTopSegment(state.wAngle);
+    key = state.myRole;
+  }
+
+  const cur = (v[key] && typeof v[key].score === 'number') ? v[key].score : 0;
+  await dispatchUpdate({ [key + '/score']: cur + seg.value });
+
   const gb = $('#gain-banner');
   gb.classList.remove('up','down');
   void gb.offsetWidth;
@@ -1607,12 +1930,17 @@ async function finishSpin(){
   gb.textContent = (seg.value >= 0 ? '+' : '−') + Math.abs(seg.value).toLocaleString('fr-FR') + ' FCFA';
   setTimeout(() => {
     if (gb.textContent.endsWith(' FCFA')) {
-      // keep until next spin or round change — fade after 5s
       setTimeout(() => { gb.classList.remove('up','down'); gb.innerHTML = '&nbsp;'; }, 4000);
     }
   }, 0);
-  // re-evaluate hub interactivity
   $('#hub').classList.toggle('disabled', false);
+
+  // Resolve Rollin's pending spin promise
+  if (state.soloRollinSpinResolver){
+    const r = state.soloRollinSpinResolver;
+    state.soloRollinSpinResolver = null;
+    r();
+  }
 }
 
 function tryStartSpin(){
@@ -1665,17 +1993,12 @@ function setupMicButtons(){
 /* ---------- PAUSE ---------- */
 function bindPauseControls(){
   $('#btn-pause').addEventListener('click', () => {
-    if (!state.data || !state.gameId) return;
-    if (state.data.phase !== 'playing') return;
-    db.ref('parties/' + state.gameId).update({
-      paused: true, pausedBy: state.myRole
-    }).catch(()=>{});
+    if (!state.data || state.data.phase !== 'playing') return;
+    dispatchUpdate({ paused: true, pausedBy: state.myRole });
   });
   $('#btn-resume').addEventListener('click', () => {
-    if (!state.gameId) return;
-    db.ref('parties/' + state.gameId).update({
-      paused: false, pausedBy: null
-    }).catch(()=>{});
+    if (!state.data) return;
+    dispatchUpdate({ paused: false, pausedBy: null });
   });
 }
 
@@ -1683,8 +2006,7 @@ function bindPauseControls(){
 function bindStopControls(){
   const overlay = $('#confirm-quit');
   $('#btn-stop').addEventListener('click', () => {
-    if (!state.gameId || !state.data) return;
-    if (state.data.phase !== 'playing') return;
+    if (!state.data || state.data.phase !== 'playing') return;
     overlay.classList.add('visible');
   });
   $('#btn-quit-no').addEventListener('click', () => {
@@ -1692,15 +2014,12 @@ function bindStopControls(){
   });
   $('#btn-quit-yes').addEventListener('click', async () => {
     overlay.classList.remove('visible');
-    if (!state.gameId) return;
-    try {
-      await db.ref('parties/' + state.gameId).update({
-        phase: 'ended',
-        timeLeft: 0,
-        paused: false,
-        pausedBy: null
-      });
-    } catch(e){}
+    await dispatchUpdate({
+      phase: 'ended',
+      timeLeft: 0,
+      paused: false,
+      pausedBy: null
+    });
   });
 }
 
@@ -1713,7 +2032,22 @@ function showResult(v){
   const diff = hostScore - guestScore;
 
   const msg = $('#result-msg');
-  if (diff === 0){
+  if (state.mode === 'solo'){
+    const amount = Math.abs(diff).toLocaleString('fr-FR');
+    if (diff > 0){
+      msg.innerHTML =
+        'Félicitations <span class="winner">'+hostName+'</span> ! 🎉<br>'+
+        'Vous avez gagné <span class="amount">'+amount+' FCFA</span> auprès de '+
+        '<span class="loser">ROLLIN</span> 🥳';
+    } else if (diff < 0){
+      msg.innerHTML =
+        '<span class="loser">ROLLIN</span> remporte '+
+        '<span class="amount" style="color:#FF1744">'+amount+' FCFA</span> 🎰<br>'+
+        'Retente ta chance <span class="winner">'+hostName+'</span> !';
+    } else {
+      msg.innerHTML = 'MATCH NUL ! Personne ne doit rien 🤝';
+    }
+  } else if (diff === 0){
     msg.innerHTML = 'MATCH NUL ! Personne ne doit rien 🤝';
   } else {
     const winnerName = diff > 0 ? hostName : guestName;
@@ -1735,8 +2069,9 @@ function showResult(v){
       '<div class="sc">'+fmtFcfa(score)+'</div>';
     return c;
   }
-  grid.appendChild(card(hostName,  hostScore,  diff > 0));
-  grid.appendChild(card(guestName, guestScore, diff < 0));
+  const displayGuestName = state.mode === 'solo' ? 'ROLLIN' : guestName;
+  grid.appendChild(card(hostName,         hostScore,  diff > 0));
+  grid.appendChild(card(displayGuestName, guestScore, diff < 0));
 
   show('screen-result');
   spawnConfetti();
@@ -1744,9 +2079,19 @@ function showResult(v){
 }
 
 function setupRematchUI(v){
-  const isHost = state.myRole === 'host';
   const hostBlock  = $('#host-rematch');
   const guestBlock = $('#guest-waiting');
+  const soloBlock  = $('#solo-rematch');
+
+  if (state.mode === 'solo'){
+    hostBlock.style.display  = 'none';
+    guestBlock.style.display = 'none';
+    soloBlock.style.display  = '';
+    return;
+  }
+  soloBlock.style.display = 'none';
+
+  const isHost = state.myRole === 'host';
   if (isHost){
     hostBlock.style.display = '';
     guestBlock.style.display = 'none';
@@ -1760,10 +2105,11 @@ function setupRematchUI(v){
 }
 
 async function startRematch(){
-  if (!state.gameId || state.myRole !== 'host') return;
+  if (state.myRole !== 'host') return;
+  if (state.mode !== 'duo' || !state.gameId) return;
   const n = state.rematchRounds || 4;
   try {
-    await db.ref('parties/' + state.gameId).update({
+    await dispatchUpdate({
       'host/score':   0,
       'guest/score':  0,
       'totalRounds':  n,
@@ -1788,6 +2134,11 @@ async function quitGame(){
 function bindResultButtons(){
   $('#btn-new-round').addEventListener('click', startRematch);
   $('#btn-quit').addEventListener('click', quitGame);
+  $('#btn-solo-replay').addEventListener('click', () => {
+    if (state.mode !== 'solo' || !state.soloData) return;
+    const name = state.soloData.host.name;
+    startSoloGame(name);
+  });
 }
 function spawnConfetti(){
   const colors = ['#FFD100','#FF8C00','#00E676','#2979FF','#FF1744','#FFFFFF'];
