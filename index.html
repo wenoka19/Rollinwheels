@@ -473,6 +473,41 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
 .score-card .sc{font-family:'Bebas Neue';font-size:2rem;color:var(--gold);margin-top:4px}
 .score-card.win .sc{color:#FFD100}
 
+/* ---------- REMATCH UI ---------- */
+.host-rematch{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  width:100%;max-width:380px;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:18px;padding:18px;
+  animation:cardIn .4s ease-out .15s both;
+}
+.host-rematch .rounds-row{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.host-rematch .btn-primary{width:100%}
+.rematch-label{
+  font-family:'Oxanium',sans-serif;font-weight:700;text-transform:uppercase;
+  font-size:.72rem;letter-spacing:.22em;color:var(--muted);
+  text-align:center;
+}
+.guest-waiting{
+  width:100%;max-width:380px;text-align:center;
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;padding:18px;
+  animation:cardIn .4s ease-out .15s both;
+}
+.guest-waiting .waiting-row{
+  justify-content:center;
+  font-family:'Oxanium',sans-serif;color:rgba(255,255,255,.85);
+  font-size:.92rem;
+}
+.guest-waiting b{
+  color:var(--gold);font-family:'Bebas Neue',sans-serif;
+  letter-spacing:.04em;font-size:1.1rem;font-weight:400;
+}
+.btn-quit{
+  color:rgba(255,255,255,.5);
+  min-width:200px;margin-top:4px;
+}
+
 .confetti{position:fixed;top:-20px;width:8px;height:14px;border-radius:2px;z-index:25;pointer-events:none;animation:confettiFall linear forwards}
 
 /* ---------- ERROR / SMALL ---------- */
@@ -639,7 +674,21 @@ canvas#wheel.dim{box-shadow:0 0 0 2px rgba(255,255,255,.05),0 0 18px rgba(0,0,0,
   <span class="result-icon">🥳</span>
   <div id="result-msg" class="result-msg"></div>
   <div id="scores-grid" class="scores-grid"></div>
-  <button id="btn-replay" class="btn-primary">REJOUER</button>
+
+  <div id="host-rematch" class="host-rematch" style="display:none">
+    <div class="rematch-label">Choisis le nombre de rounds</div>
+    <div class="rounds-row" id="result-rounds-row"></div>
+    <button id="btn-new-round" class="btn-primary">LANCER UN NOUVEAU ROUND ⚡</button>
+  </div>
+
+  <div id="guest-waiting" class="guest-waiting" style="display:none">
+    <div class="waiting-row">
+      <span class="dot-pulse"></span>
+      <span>En attente que <b id="waiting-host-name">…</b> lance un nouveau round…</span>
+    </div>
+  </div>
+
+  <button id="btn-quit" class="btn-ghost btn-quit">QUITTER LE JEU</button>
   <div></div>
 </section>
 
@@ -740,8 +789,10 @@ const state = {
   rafId: null,
   timerInterval: null,
   endedCleanupScheduled: false,
+  endedCleanupTimer: null,
   lastEmojiTs: 0,
   prevScores: { host: 0, guest: 0 },
+  rematchRounds: 4,
 };
 const sessionStartTs = Date.now();
 
@@ -965,21 +1016,24 @@ function spawnFlyingEmoji(emoji){
 }
 
 /* ---------- HOME ---------- */
-function buildRounds(){
-  const row = $('#rounds-row');
-  row.innerHTML = '';
+function buildRoundsRow(container, current, onSelect){
+  container.innerHTML = '';
   [2,4,6,8,10,12].forEach(n => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'round-pill' + (n === state.totalRounds ? ' active' : '');
+    b.className = 'round-pill' + (n === current ? ' active' : '');
     b.textContent = n;
     b.addEventListener('click', () => {
-      state.totalRounds = n;
-      $$('#rounds-row .round-pill').forEach(p => p.classList.remove('active'));
+      onSelect(n);
+      container.querySelectorAll('.round-pill').forEach(p => p.classList.remove('active'));
       b.classList.add('active');
     });
-    row.appendChild(b);
+    container.appendChild(b);
   });
+}
+
+function buildRounds(){
+  buildRoundsRow($('#rounds-row'), state.totalRounds, n => state.totalRounds = n);
 }
 
 function initHome(){
@@ -1147,6 +1201,7 @@ function cleanupAndHome(){
   if (gameListener){ gameListener(); gameListener = null; }
   stopMyTimer();
   cleanupRTC();
+  if (state.endedCleanupTimer){ clearTimeout(state.endedCleanupTimer); state.endedCleanupTimer = null; }
   localStorage.removeItem('rdf_gameId');
   localStorage.removeItem('rdf_role');
   state.gameId = null; state.myRole = null;
@@ -1158,8 +1213,23 @@ function cleanupAndHome(){
 }
 
 function onGameUpdate(v){
+  const prevPhase = state.data && state.data.phase;
   state.data = v;
   state.totalRounds = v.totalRounds || 4;
+
+  // Rematch transition (ended -> playing): keep WebRTC, just switch screen back
+  if (prevPhase === 'ended' && v.phase === 'playing'){
+    state.prevScores = {
+      host:  (v.host  && v.host.score)  || 0,
+      guest: (v.guest && v.guest.score) || 0
+    };
+    if (state.endedCleanupTimer){
+      clearTimeout(state.endedCleanupTimer);
+      state.endedCleanupTimer = null;
+    }
+    state.endedCleanupScheduled = false;
+    show('screen-game');
+  }
 
   // names
   const hostName = (v.host && v.host.name) || '—';
@@ -1259,11 +1329,13 @@ function onGameUpdate(v){
   // ended
   if (v.phase === 'ended'){
     stopMyTimer();
-    showResult(v);
+    if (prevPhase !== 'ended'){
+      showResult(v);
+    }
     if (!state.endedCleanupScheduled){
       state.endedCleanupScheduled = true;
       const gid = state.gameId;
-      setTimeout(() => {
+      state.endedCleanupTimer = setTimeout(() => {
         db.ref('parties/' + gid).remove().catch(()=>{});
       }, 5 * 60 * 1000);
     }
@@ -1581,11 +1653,54 @@ function showResult(v){
 
   show('screen-result');
   spawnConfetti();
+  setupRematchUI(v);
+}
 
-  $('#btn-replay').onclick = async () => {
-    try { await db.ref('parties/' + state.gameId).remove(); } catch(e){}
-    cleanupAndHome();
-  };
+function setupRematchUI(v){
+  const isHost = state.myRole === 'host';
+  const hostBlock  = $('#host-rematch');
+  const guestBlock = $('#guest-waiting');
+  if (isHost){
+    hostBlock.style.display = '';
+    guestBlock.style.display = 'none';
+    state.rematchRounds = (v && v.totalRounds) || state.rematchRounds || 4;
+    buildRoundsRow($('#result-rounds-row'), state.rematchRounds, n => state.rematchRounds = n);
+  } else {
+    hostBlock.style.display = 'none';
+    guestBlock.style.display = '';
+    $('#waiting-host-name').textContent = (v && v.host && v.host.name) || '—';
+  }
+}
+
+async function startRematch(){
+  if (!state.gameId || state.myRole !== 'host') return;
+  const n = state.rematchRounds || 4;
+  try {
+    await db.ref('parties/' + state.gameId).update({
+      'host/score':   0,
+      'guest/score':  0,
+      'totalRounds':  n,
+      'currentRound': 1,
+      'roundOwner':   'host',
+      'timeLeft':     ROUND_DURATION,
+      'paused':       false,
+      'pausedBy':     null,
+      'phase':        'playing',
+    });
+  } catch(e){ alert('Erreur : ' + e.message); }
+}
+
+async function quitGame(){
+  const gid = state.gameId;
+  if (gid){
+    try { await db.ref('parties/' + gid).remove(); } catch(e){}
+  }
+  cleanupAndHome();
+}
+
+function bindResultButtons(){
+  $('#btn-new-round').addEventListener('click', startRematch);
+  $('#btn-quit').addEventListener('click', quitGame);
 }
 function spawnConfetti(){
   const colors = ['#FFD100','#FF8C00','#00E676','#2979FF','#FF1744','#FFFFFF'];
@@ -1726,6 +1841,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initHome();
   bindPauseControls();
   bindStopControls();
+  bindResultButtons();
   $('#hub').addEventListener('click', tryStartSpin);
   drawDemoWheel();
   startDemoLoop();
